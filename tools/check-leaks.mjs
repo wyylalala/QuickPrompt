@@ -85,9 +85,9 @@ function listFiles() {
  */
 function walk(directory, files = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (entry.name.startsWith('.git') || SKIP_DIRECTORIES.has(entry.name)) continue
     const full = join(directory, entry.name)
     if (entry.isDirectory()) {
+      if (entry.name.startsWith('.git') || SKIP_DIRECTORIES.has(entry.name)) continue
       walk(full, files)
       continue
     }

@@ -7,7 +7,7 @@
 Forge a rough request into a structured prompt, save it as a `/qp-<slug>` command, run it again in one keystroke.
 
 [![license](https://img.shields.io/badge/license-MIT-2b6de5.svg)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-0.2%2B-7b3fe4.svg)](#compatibility)
+[![DSH](https://img.shields.io/badge/DSH-0.2.1%2B-7b3fe4.svg)](#compatibility)
 [![stars](https://img.shields.io/github/stars/wyylalala/QuickPrompt?style=flat&label=stars)](https://github.com/wyylalala/QuickPrompt)
 
 [中文](README.md) | English
@@ -73,7 +73,7 @@ Plain ESM: the source runs as-is, with no `npm install` and no build artifacts. 
 
 ### 3. npm
 
-**Not published yet.** The name `dsh-quickprompt` is reserved but not on npm, so entering the package name in `plugin_manager` will not install anything today. The release steps live in [docs/RELEASING.md](docs/RELEASING.md); this section will be updated once it ships.
+**Not published yet.** The package is named `dsh-quickprompt`, but it is not on npm, so entering the package name in `plugin_manager` will not install anything today. The release steps live in [docs/RELEASING.md](docs/RELEASING.md); this section will be updated once it ships.
 
 ### After installing
 
@@ -243,13 +243,13 @@ test/                 unit and integration tests
 | --- | --- | --- |
 | DSH Desktop / `dsh web` 0.2.1+ | Yes | Yes |
 | Other hosts (TUI, ACP, sub-agents, scripted calls) | Yes | No plugin page; use `/qp` |
-| DSH 0.2.0 and older | The interfaces slash commands rely on may be missing; upgrade | — |
+| DSH 0.2.0 and older | Not verified; upgrade to 0.2.1+ | — (no plugin page) |
 
 A missing panel never affects the commands: the plugin only registers the panel on a Web host that supports plugin pages and stays quiet elsewhere.
 
 ## Roadmap
 
-- **npm release**: the name `dsh-quickprompt` is reserved; steps are in [docs/RELEASING.md](docs/RELEASING.md). Install-by-name lands once it ships.
+- **npm release**: the package name is `dsh-quickprompt`; steps are in [docs/RELEASING.md](docs/RELEASING.md). Install-by-name lands once it ships.
 - **Market listing**: submit to the awesome-dsh-plugin catalog so dshmarket can find it; also in RELEASING.md, not done yet.
 - **Panel improvements**: search, import / export, variable preview and recent-use ordering.
 

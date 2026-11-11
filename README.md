@@ -7,7 +7,7 @@
 把一句口语需求「炼化」成结构化 Prompt，存成 `/qp-<slug>` 快捷命令，之后一键复跑。
 
 [![license](https://img.shields.io/badge/license-MIT-2b6de5.svg)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-0.2%2B-7b3fe4.svg)](#兼容性)
+[![DSH](https://img.shields.io/badge/DSH-0.2.1%2B-7b3fe4.svg)](#兼容性)
 [![stars](https://img.shields.io/github/stars/wyylalala/QuickPrompt?style=flat&label=stars)](https://github.com/wyylalala/QuickPrompt)
 
 [English](README.en.md) | 中文
@@ -73,7 +73,7 @@ dsh plugin --profile <profile> add github:wyylalala/QuickPrompt
 
 ### 3. npm
 
-**暂未发布。** 包名 `dsh-quickprompt` 已占用但还没发到 npm，所以现在 `plugin_manager` 里填包名装不上。发布流程写在 [docs/RELEASING.md](docs/RELEASING.md)，发布后会同步更新本节。
+**暂未发布。** 包名定为 `dsh-quickprompt`，但还没发到 npm，所以现在 `plugin_manager` 里填包名装不上。发布流程写在 [docs/RELEASING.md](docs/RELEASING.md)，发布后会同步更新本节。
 
 ### 装完确认
 
@@ -243,7 +243,7 @@ test/                 单元 + 集成测试
 | --- | --- | --- |
 | DSH Desktop / `dsh web` 0.2.1+ | 可用 | 可用 |
 | 其他宿主（TUI、ACP、子代理、脚本调用） | 可用 | 没有插件页，用 `/qp` 命令 |
-| DSH 0.2.0 及更早 | 斜杠命令依赖的接口可能缺失，建议升级 | — |
+| DSH 0.2.0 及更早 | 未验证，建议升级到 0.2.1+ | —（没有插件页） |
 
 面板不可用不会影响命令：插件只在支持插件页的 Web 宿主里注册面板，其余环境安静降级。
 
