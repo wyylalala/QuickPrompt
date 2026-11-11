@@ -73,17 +73,21 @@ function formatHelp(prefix) {
   return [
     'QuickPrompt — 炼化 Prompt 并一键执行',
     '',
-    `/${prefix} <一句需求>           炼化后立即执行（加 --dry 只看不跑）`,
+    `/${prefix} <一句需求>           炼化后立即执行（--review 只炼化，--dry 只看回显）`,
     `/${prefix} list                 列出已保存的提示词`,
     `/${prefix} show <slug>          查看原文与变量`,
     `/${prefix} forge <粗糙需求>     只炼化并回显，不执行`,
+    `/${prefix} revise <修改意见>    基于上一稿改一版（配合 --review / apply）`,
+    `/${prefix} apply [--save=slug]  执行当前草稿，可顺手存库`,
+    `/${prefix} edit <slug> <修改意见>  改写已保存的提示词（--dry 只预览）`,
     `/${prefix} save <slug> [--title=标题] [--desc=描述]   保存最近一次炼化`,
-    `/${prefix} run <slug> [k=v ...] 渲染并立即执行`,
+    `/${prefix} run <slug> [k=v ...] 渲染并立即执行（缺变量会先追问）`,
     `/${prefix} rm <slug> --yes      删除`,
     `/${prefix} path                 显示库文件位置`,
     '',
     `也可以直接把需求写在命令后面：/${prefix} 帮我写一份周报，炼化完会直接开始执行。`,
     `加 --save=<slug> 可顺手存成快捷命令：/${prefix} 帮我写周报 --save=weekly`,
+    `缺变量时默认弹卡片追问，加 --no-ask 可跳过。`,
     `保存后会自动生成 /${prefix}-<slug>，例如 /${prefix}-weekly，直接执行即可。`,
     '模板支持 {{变量}} 与 {{变量:默认值}}；参数既可写 主题=Q4 也可按顺序给。',
   ].join('\n')
@@ -116,6 +120,7 @@ export function apply(ctx, config = {}) {
   const maxPromptCommands = Number(readConfig(config, 'maxPromptCommands', 50)) || 50
   const forgeSystemPrompt = String(readConfig(config, 'forgeSystemPrompt', DEFAULT_FORGE_SYSTEM_PROMPT))
   const forgeModel = readConfig(config, 'forgeModel', undefined)
+  const askMissing = readConfig(config, 'askMissing', true) !== false
 
   const store = createFileStore({ file: resolveLibraryPath(config), logger: ctx.logger })
   try {
@@ -157,21 +162,92 @@ export function apply(ctx, config = {}) {
     })
   }
 
+  /** Per-session key holding the most recent draft. */
+  function draftKey(invocation) {
+    return invocation?.agent?.id ?? 'default'
+  }
+
+  /**
+   * Append collected slot values to an argument string.
+   * @param {string} rawInput - arguments the user typed.
+   * @param {Record<string, string>} values - collected values.
+   * @returns {string} argument text with `name="value"` pairs appended.
+   */
+  function withValues(rawInput, values) {
+    const pairs = Object.entries(values)
+      .filter(([, value]) => String(value).trim().length > 0)
+      .map(([name, value]) => `${name}="${String(value).replace(/"/g, '').trim()}"`)
+    const base = String(rawInput ?? '').trim()
+    return base ? `${base} ${pairs.join(' ')}` : pairs.join(' ')
+  }
+
+  /**
+   * Ask the user once for every missing slot, through the Host question card.
+   * @param {object} invocation - command invocation.
+   * @param {object} record - prompt record.
+   * @param {string[]} missing - slot names still needed.
+   * @returns {Promise<{values: Record<string, string>} | {cancelled: string} | undefined>} collected values, cancellation, or why asking was skipped.
+   */
+  async function askForMissing(invocation, record, missing) {
+    if (!askMissing || missing.length === 0 || missing.length > 8) return undefined
+    if (!invocation?.agent) return undefined
+    const service = ctx.get('userQuestions')
+    if (!service || typeof service.ask !== 'function') return undefined
+    const declared = new Map(parseVariables(record.body).map((slot) => [slot.name, slot]))
+    try {
+      const answer = await service.ask({
+        agent: invocation.agent,
+        ...(invocation.signal ? { signal: invocation.signal } : {}),
+        questions: missing.map((name) => {
+          const slot = declared.get(name)
+          const hint = slot?.defaultValue ? `默认值：${slot.defaultValue}` : undefined
+          return {
+            id: name,
+            header: name,
+            question: `「${record.title || record.name}」需要「${name}」的值`,
+            ...(hint ? { detail: hint } : {}),
+          }
+        }),
+      })
+      const values = {}
+      for (const item of answer?.answers ?? []) {
+        const value = String(item?.custom ?? item?.selected?.[0] ?? '').trim()
+        if (value) values[item.id] = value
+      }
+      return { values }
+    } catch (error) {
+      const code = error?.code ?? error?.name ?? ''
+      if (code === 'ASK_CANCELLED' || code === 'ASK_ABORTED') return { cancelled: code }
+      ctx.logger?.warn?.(`quickprompt: 追问缺失变量失败: ${error?.message ?? error}`)
+      return undefined
+    }
+  }
+
   /**
    * Run one saved prompt with the raw argument string.
    * @param {object} invocation - command invocation.
    * @param {string} slug - prompt name.
    * @param {string} rawInput - argument text.
-   * @returns {{kind: string, text: string}} command result.
+   * @returns {Promise<{kind: string, text: string}>} command result.
    */
-  function runPrompt(invocation, slug, rawInput) {
+  async function runPrompt(invocation, slug, rawInput) {
     const record = store.get(slug)
     if (!record) return { kind: 'error', text: `没有名为 ${slug} 的提示词，先 /${prefix} list 看看。` }
-    const rendered = renderPrompt(record, rawInput)
+    const { flags: argFlags, rest: argsText } = readFlags(rawInput ?? '')
+    const skipAsk = argFlags['no-ask'] !== undefined
+    let rendered = renderPrompt(record, argsText)
     if (!rendered.ok) {
-      return {
-        kind: 'error',
-        text: `缺少变量：${rendered.missing.join(', ')}。用法：/${prefix}-${slug} ${rendered.missing.map((item) => `${item}=...`).join(' ')}`,
+      const asked = skipAsk ? undefined : await askForMissing(invocation, record, rendered.missing)
+      if (asked?.cancelled) return { kind: 'error', text: '已取消。' }
+      if (asked?.values && Object.keys(asked.values).length > 0) {
+        rendered = renderPrompt(record, withValues(argsText, asked.values))
+      }
+      if (!rendered.ok) {
+        const usage = rendered.missing.map((item) => `${item}=...`).join(' ')
+        return {
+          kind: 'error',
+          text: `缺少变量：${rendered.missing.join(', ')}。用法：/${prefix}-${slug} ${usage}\n提示：加 --no-ask 跳过追问；/${prefix} show ${slug} 查看模板。`,
+        }
       }
     }
     if (!autoRun) {
@@ -189,14 +265,17 @@ export function apply(ctx, config = {}) {
   }
 
   /**
-   * Forge one rough request into a structured prompt.
+   * Forge one rough request into a structured prompt, optionally rewriting a previous draft.
    * @param {string} rough - user's raw request.
    * @param {AbortSignal} [signal] - cancellation.
+   * @param {{previous?: string, feedback?: string}} [options] - previous draft and the change requested.
    * @returns {Promise<string>} the refined prompt.
    */
-  async function forge(rough, signal) {
+  async function forge(rough, signal, options = {}) {
     const trimmed = String(rough ?? '').trim()
-    if (!trimmed) throw new Error('先给一句粗糙需求，例如：/qp forge 帮我写一份周报')
+    const previous = typeof options.previous === 'string' ? options.previous.trim() : ''
+    const feedback = typeof options.feedback === 'string' ? options.feedback.trim() : ''
+    if (!trimmed && !previous) throw new Error('先给一句粗糙需求，例如：/qp forge 帮我写一份周报')
     const selection = ctx.get('agentDefaultModel')?.currentSelection?.() ?? {}
     const provider = forgeModel?.provider || selection.provider
     const model = forgeModel?.model || selection.model
@@ -205,7 +284,7 @@ export function apply(ctx, config = {}) {
       provider,
       model,
       system: forgeSystemPrompt,
-      messages: buildForgeMessages(trimmed),
+      messages: buildForgeMessages(trimmed, previous, feedback),
       temperature: 0.4,
       ...(signal ? { signal } : {}),
     })
@@ -249,6 +328,112 @@ export function apply(ctx, config = {}) {
     return {
       kind: 'success',
       text: `已保存「${meta.title || normalized}」。以后输入 /${prefix}-${normalized} 即可一键执行。`,
+    }
+  }
+
+  /**
+   * Forge one request but leave it as a draft instead of executing it.
+   * @param {object} invocation - command invocation.
+   * @param {string} rough - user's raw request.
+   * @returns {Promise<{kind: string, text: string}>} command result.
+   */
+  async function reviewDraft(invocation, rough) {
+    try {
+      const text = await forge(rough, invocation.signal)
+      lastForged.set(draftKey(invocation), { text, rough, at: Date.now() })
+      return {
+        kind: 'success',
+        text: [
+          '炼化完成（未执行）：',
+          '',
+          text,
+          '',
+          '下一步：',
+          `  /${prefix} apply              直接执行`,
+          `  /${prefix} revise <修改意见>  改一版再决定`,
+          `  /${prefix} save <slug>        存成快捷命令`,
+        ].join('\n'),
+      }
+    } catch (error) {
+      return { kind: 'error', text: `炼化失败：${error?.message ?? error}` }
+    }
+  }
+
+  /**
+   * Rewrite the current draft with one more instruction.
+   * @param {object} invocation - command invocation.
+   * @param {string} feedback - what to change.
+   * @returns {Promise<{kind: string, text: string}>} command result.
+   */
+  async function reviseDraft(invocation, feedback) {
+    const key = draftKey(invocation)
+    const last = lastForged.get(key)
+    if (!last) return { kind: 'error', text: `还没有草稿。先 /${prefix} <一句需求> --review 炼化一版。` }
+    if (!String(feedback ?? '').trim()) return { kind: 'error', text: `用法：/${prefix} revise <修改意见>` }
+    try {
+      const text = await forge(last.rough, invocation.signal, { previous: last.text, feedback })
+      lastForged.set(key, { text, rough: last.rough, at: Date.now() })
+      return {
+        kind: 'success',
+        text: `已改稿（未执行）：\n\n${text}\n\n继续 /${prefix} revise <意见>，或 /${prefix} apply 执行。`,
+      }
+    } catch (error) {
+      return { kind: 'error', text: `改稿失败：${error?.message ?? error}` }
+    }
+  }
+
+  /**
+   * Execute the current draft, optionally saving it first.
+   * @param {object} invocation - command invocation.
+   * @param {Record<string, string>} flags - parsed flags.
+   * @returns {{kind: string, text: string}} command result.
+   */
+  function applyDraft(invocation, flags = {}) {
+    const key = draftKey(invocation)
+    const last = lastForged.get(key)
+    if (!last) return { kind: 'error', text: `没有待执行的草稿。先 /${prefix} <一句需求> --review 炼化一版。` }
+    if (typeof flags.save === 'string' && flags.save.length > 0) {
+      const saved = saveLastForged(invocation, flags.save, {
+        title: typeof flags.title === 'string' ? flags.title : undefined,
+      })
+      if (saved.kind !== 'success') return saved
+    }
+    if (!autoRun) return { kind: 'success', text: `autoRun 已关闭，下面是草稿：\n\n${last.text}` }
+    try {
+      deliver(invocation.agent, last.text)
+    } catch (error) {
+      return { kind: 'error', text: `发送失败：${error?.message ?? error}` }
+    }
+    return { kind: 'success', text: `已执行草稿（${last.text.length} 字）。` }
+  }
+
+  /**
+   * Rewrite a saved prompt with one instruction and store the result.
+   * @param {object} invocation - command invocation.
+   * @param {string} slug - prompt name.
+   * @param {string} feedback - what to change.
+   * @param {Record<string, string>} flags - parsed flags.
+   * @returns {Promise<{kind: string, text: string}>} command result.
+   */
+  async function editPrompt(invocation, slug, feedback, flags = {}) {
+    const record = store.get(slug)
+    if (!record) return { kind: 'error', text: `没有名为 ${slug} 的提示词。` }
+    if (!String(feedback ?? '').trim()) {
+      return { kind: 'error', text: `用法：/${prefix} edit <slug> <修改意见>  （加 --dry 只预览不写库）` }
+    }
+    try {
+      const text = await forge(record.title || record.name, invocation.signal, {
+        previous: record.body,
+        feedback,
+      })
+      if (flags.dry !== undefined) {
+        return { kind: 'success', text: `--dry 未写库，这是改后的版本：\n\n${text}` }
+      }
+      store.save({ name: record.name, title: record.title, description: record.description, body: text })
+      refreshDynamicCommands()
+      return { kind: 'success', text: `已更新 /${prefix}-${record.name}（${text.length} 字）：\n\n${text}` }
+    } catch (error) {
+      return { kind: 'error', text: `改稿失败：${error?.message ?? error}` }
     }
   }
 
@@ -324,16 +509,19 @@ export function apply(ctx, config = {}) {
   ctx.effect(() => ctx.commands.register({
     name: prefix,
     description: '炼化 Prompt 并一键执行：保存常用提示词为快捷命令',
-    input: { hint: '<一句需求> | list | show <slug> | forge <需求> | save <slug> | run <slug> | rm <slug> | path' },
+    input: { hint: '<一句需求> | list | show <slug> | forge <需求> | revise <意见> | apply | edit <slug> <意见> | save <slug> | run <slug> | rm <slug> | path' },
     handler: async (invocation) => {
       const { flags, rest } = readFlags(invocation.rawInput)
       const trimmed = rest.trim()
       const [subcommand, ...tail] = trimmed.split(/\s+/u)
       const argument = tail.join(' ')
-      const known = ['help', 'list', 'show', 'forge', 'save', 'run', 'rm', 'remove', 'path']
+      const known = ['help', 'list', 'show', 'forge', 'save', 'run', 'rm', 'remove', 'path', 'review', 'revise', 'apply', 'edit']
       const key = (subcommand ?? '').toLowerCase()
       // 直接把一句需求写在 /qp 后面：炼化后立即执行；加 --dry 只炼化不执行。
       if (trimmed.length > 0 && !known.includes(key)) {
+        if (flags.review !== undefined) {
+          return reviewDraft(invocation, trimmed)
+        }
         if (flags.dry !== undefined || flags['no-run'] !== undefined) {
           return forgeAndReport(invocation, trimmed, flags)
         }
@@ -406,6 +594,12 @@ export function apply(ctx, config = {}) {
           refreshDynamicCommands()
           return { kind: 'success', text: `已删除 ${slug}，对应命令 /${prefix}-${slug} 已移除。` }
         }
+        case 'revise':
+          return reviseDraft(invocation, argument)
+        case 'apply':
+          return applyDraft(invocation, flags)
+        case 'edit':
+          return editPrompt(invocation, (tail[0] ?? '').trim(), tail.slice(1).join(' '), flags)
         case 'path':
           return { kind: 'success', text: `库文件：${store.file}` }
         default:
