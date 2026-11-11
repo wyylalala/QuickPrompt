@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "QuickPrompt",
+    "description": "Forge a rough request into a structured prompt, save it as a slash command, and run it again in one click."
+  }
+}

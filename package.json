@@ -1,0 +1,43 @@
+{
+  "name": "dsh-quickprompt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "炼化 Prompt 并一键执行：把口语需求变成结构化提示词，保存为快捷命令，随时复跑。A DSH plugin that forges rough requests into reusable prompts and runs them in one click.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "lib/*.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "prompt",
+    "prompt-library",
+    "quickprompt"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wyylalala/QuickPrompt.git"
+  },
+  "scripts": {
+    "test": "node test/render.test.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

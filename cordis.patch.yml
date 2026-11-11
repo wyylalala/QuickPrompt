@@ -1,0 +1,4 @@
+- insert:
+    - id: quickprompt
+      name: dsh-quickprompt
+      config: {}
