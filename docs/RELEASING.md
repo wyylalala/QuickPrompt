@@ -20,7 +20,7 @@ QuickPrompt 对外有两件事要做：发 npm 包、进市场目录。各一份
   npm login
   ```
 
-- [ ] **去掉私有标记**：从 `package.json` 删除 `"private": true`（不删的话 `npm publish` 会直接拒绝）。
+- [ ] **确认没有私有标记**：`package.json` 里不应有 `"private": true`（有的话 `npm publish` 会直接拒绝；当前 0.2.0 已移除）。
 
 - [ ] **确认 `files` 覆盖发布内容**。当前至少要包含：
 
