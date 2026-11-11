@@ -744,8 +744,7 @@ export function apply(ctx, config = {}) {
     return sendJson(res, 200, { ok: true, ...panelState() })
   }
 
-  async function handlePanelDelete(req, res) {
-    if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: '仅允许同源页面访问' })
+  async function handlePanelDelete(req, res) {    if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: '仅允许同源页面访问' })
     if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: '只支持 POST' })
     let payload
     try {

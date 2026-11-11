@@ -44,9 +44,10 @@
     "url": "https://github.com/wyylalala/QuickPrompt/issues"
   },
   "scripts": {
-    "test": "node test/render.test.js && node test/plugin.test.js",
+    "test": "node test/render.test.js && node test/plugin.test.js && node test/client.test.js",
     "test:render": "node test/render.test.js",
     "test:plugin": "node test/plugin.test.js",
+    "test:client": "node test/client.test.js",
     "check:leaks": "node tools/check-leaks.mjs"
   },
   "dsh": {

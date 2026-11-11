@@ -35,7 +35,6 @@ QuickPrompt folds that into one loop: **forge → save as a command → run agai
 | **Draft loop** | `--review` forges only, `/qp revise` rewrites the draft, `/qp apply` sends it; `/qp edit` rewrites a saved entry |
 | **Variables** | `{{topic}}` and `{{topic:default}}`, values as `topic=Q4` or in template order |
 | **Agent sharing** | A `quick_prompt` tool (list / get / save / delete / run / forge) works on the same library |
-| **Prompt-library panel** | On a Web host (DSH Desktop / `dsh web`) the Plugins page gets a Prompt library tab: list plus body editor |
 | **Local first** | One human-readable JSON file, atomic writes, corrupt files backed up, no upload, no telemetry |
 | **Zero dependencies** | Plain ESM, no third-party npm package, no build step |
 
@@ -158,19 +157,11 @@ The forge runs, and the result is delivered into the session to execute. To look
 
 Forge results are cached per session, so saving does not require copying the prompt back anywhere.
 
-## Plugin panel
+## One loop
 
-On a Web host (DSH Desktop / `dsh web`) the Plugins page gains a **Prompt library** tab: saved prompts on the left, the body edited on the right, variables shown as chips, and new / delete / save handled in the panel. Saving writes the same JSON library, and the matching `/qp-<slug>` refreshes immediately — no restart.
-
-The panel is just one entrance to the same loop — commands, panel and the model-side tool all land in one library:
+Commands, the model-side tool, and a planned Plugins-page panel all read and write the same local library; the first two are available today:
 
 ![QuickPrompt loop (UI mock)](assets/flow.svg)
-
-Panel layout mock (wireframe, not final pixels):
-
-![Prompt library panel (UI mock)](assets/panel.svg)
-
-> Both images are **interface mock-ups**. The panel needs a host that provides plugin pages. Non-Web hosts (TUI, ACP, sub-agents, scripted calls) have no tab, but `/qp` and the `quick_prompt` tool keep working.
 
 ## Configuration
 
@@ -229,7 +220,7 @@ index.js              host side: commands, tool, forge, delivery
 lib/render.js         template parsing / rendering / argument binding (pure)
 lib/store.js          JSON library (atomic writes, corrupt-file backup)
 lib/forge.js          forge instruction and streaming aggregation
-client.js             Plugins page "Prompt library" panel (Web host)
+client.js             Plugins-page panel (in development, unverified)
 locale/               zh / en strings
 assets/               README and panel mock-ups (SVG)
 docs/                 release and listing notes
@@ -239,23 +230,23 @@ test/                 unit and integration tests
 
 ## Compatibility
 
-| Host | `/qp` commands and the `quick_prompt` tool | Plugins page "Prompt library" panel |
-| --- | --- | --- |
-| DSH Desktop / `dsh web` 0.2.1+ | Yes | Yes |
-| Other hosts (TUI, ACP, sub-agents, scripted calls) | Yes | No plugin page; use `/qp` |
-| DSH 0.2.0 and older | Not verified; upgrade to 0.2.1+ | — (no plugin page) |
+| Host | `/qp` commands and the `quick_prompt` tool |
+| --- | --- |
+| DSH Desktop / `dsh web` 0.2.1+ | Yes |
+| Other hosts (TUI, ACP, sub-agents, scripted calls) | Yes |
+| DSH 0.2.0 and older | Not verified; upgrade to 0.2.1+ |
 
-A missing panel never affects the commands: the plugin only registers the panel on a Web host that supports plugin pages and stays quiet elsewhere.
+Commands and the tool depend on no UI capability and behave the same on every host above.
 
 ## Roadmap
 
 - **npm release**: the package name is `dsh-quickprompt`; steps are in [docs/RELEASING.md](docs/RELEASING.md). Install-by-name lands once it ships.
 - **Market listing**: submit to the awesome-dsh-plugin catalog so dshmarket can find it; also in RELEASING.md, not done yet.
-- **Panel improvements**: search, import / export, variable preview and recent-use ordering.
+- **Prompt-library panel (in development)**: view, edit, create and delete prompts on a Plugins-page tab; design mock at [assets/panel.svg](assets/panel.svg). A host loads plugin UIs only at startup, and this one has not been verified on a running host yet — usage notes land here once it is.
 
 ## Credits
 
-Inspired by **@毕方BitFun**'s Douyin video "用这个功能，炼化Prompt，一键执行⚡ 避免手打" ("use this to forge a prompt and run it in one click — no more hand-typing"). The video shows that product's own interaction; this is a native DSH take on the same idea (commands + tool + local library + panel), not a UI clone.
+Inspired by **@毕方BitFun**'s Douyin video "用这个功能，炼化Prompt，一键执行⚡ 避免手打" ("use this to forge a prompt and run it in one click — no more hand-typing"). The video shows that product's own interaction; this is a native DSH take on the same idea (commands + tool + local library), not a UI clone.
 
 Thanks to DeepSeek Harness for the plugin, command and tool interfaces.
 
