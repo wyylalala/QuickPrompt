@@ -62,7 +62,7 @@ const LABELS = {
 }
 
 const CSS = `
-.qp-root { display: flex; flex-direction: column; gap: 12px; padding: 20px 24px; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary, #e8e8e8); }
+.qp-root { display: flex; flex-direction: column; gap: 12px; padding: 20px 24px; height: 100%; min-height: 480px; color: var(--dsw-alias-label-primary, #e8e8e8); }
 .qp-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .qp-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .qp-head p { margin: 0; font-size: 12px; color: var(--dsw-alias-label-secondary, #9aa0a6); }
@@ -340,29 +340,52 @@ function createPanel(React, t) {
 
 /** Register the quickprompt locale dictionaries and return a translate function. */
 function makeTranslate(ctx, zh, en) {
+  const fallback = (key) => zh[key] ?? key
   const locale = typeof ctx.get === 'function' ? ctx.get('locale') : undefined
-  if (locale && typeof locale.register === 'function' && typeof locale.bind === 'function') {
+  if (!locale || typeof locale.register !== 'function' || typeof locale.bind !== 'function') return fallback
+
+  const disposers = []
+  const tryRegister = (attempt) => {
     try {
-      const disposers = [locale.register('quickprompt', 'zh', zh), locale.register('quickprompt', 'en', en)]
-      if (typeof ctx.effect === 'function') {
-        ctx.effect(() => () => {
-          for (const dispose of disposers) {
-            try {
-              dispose()
-            } catch {
-              /* the locale owner already removed it */
-            }
-          }
-        }, 'quickprompt locale')
-      }
-      return locale.bind('quickprompt')
+      const dispose = attempt()
+      if (typeof dispose === 'function') disposers.push(dispose)
+      return true
     } catch {
-      /* fall back to Chinese below */
+      return false
     }
   }
-  return (key, fallback) => {
-    const text = zh[key] ?? fallback ?? key
-    return text
+
+  // Two documented shapes: per locale (ns, localeId, dict), or all locales (ns, dicts).
+  const perLocale =
+    tryRegister(() => locale.register('quickprompt', 'zh', zh)) &&
+    tryRegister(() => locale.register('quickprompt', 'en', en))
+  if (!perLocale) {
+    for (const dispose of disposers.splice(0)) {
+      try {
+        dispose()
+      } catch {
+        /* nothing to undo */
+      }
+    }
+    tryRegister(() => locale.register('quickprompt', { zh, en }))
+  }
+  if (disposers.length === 0) return fallback
+
+  if (typeof ctx.effect === 'function') {
+    ctx.effect(() => () => {
+      for (const dispose of disposers) {
+        try {
+          dispose()
+        } catch {
+          /* the locale owner already removed it */
+        }
+      }
+    }, 'quickprompt locale')
+  }
+  try {
+    return locale.bind('quickprompt')
+  } catch {
+    return fallback
   }
 }
 
