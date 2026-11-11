@@ -15,6 +15,8 @@
 | **炼化** | `/qp forge <一句粗糙需求>` 调用当前会话模型，重写成带角色、目标、步骤、约束、输出格式的结构化 Prompt |
 | **入库** | `/qp save weekly --title=周报` 把最近一次炼化结果存进本地库 |
 | **一键执行** | 保存后自动生成 `/qp-weekly`，直接执行，渲染结果作为用户消息送进当前会话并唤醒 Agent |
+| **缺参追问** | 必填变量没给时，弹一张问题卡片一次问齐，答完立刻渲染执行；`--no-ask` 跳过（回到纯报错），子代理/无界面场景也会自动回退 |
+| **改稿** | `/qp 需求 --review` 只炼化不执行；`/qp revise <修改意见>` 基于上一稿改一版；`/qp apply` 才发送；`/qp edit <slug> <意见>` 改写已存条目 |
 | **变量** | 模板支持 `{{主题}}` 与 `{{主题:默认值}}`，执行时用 `主题=Q4` 或按顺序传参，只填变化的部分 |
 | **Agent 共用** | 模型可通过 `quick_prompt` 工具读、写、删、运行同一个库 |
 | **可调** | 命令前缀、是否自动执行、炼化用的 system prompt / 模型、库路径等都在配置里 |
@@ -37,24 +39,38 @@ plugin_manager
 
 ```
 /qp                          查看帮助
+/qp 帮我写一份周报            炼化后立即执行（--dry 只看回显，--review 只炼化不执行）
 /qp list                     列出已保存的提示词
-/qp forge 帮我写一份周报，给老板看   → 返回炼化后的结构化 Prompt
-/qp save weekly --title=周报    → 保存，得到 /qp-weekly
-/qp-weekly 主题="Q4 复盘"       → 一键执行
+/qp forge 帮我写一份周报      只炼化、只回显
+/qp save weekly --title=周报  保存，得到 /qp-weekly
+/qp-weekly                   一键执行（缺变量会弹卡片追问）
+/qp-weekly 主题="Q4 复盘"     直接带参执行
 /qp show weekly              查看原文与变量
+/qp revise 加一条风险项       把当前草稿改一版（配合 --review）
+/qp apply                    执行当前草稿
+/qp edit weekly 换个语气      用一句话改写已保存的提示词（--dry 只预览）
 /qp rm weekly --yes          删除
 /qp path                     显示库文件位置
 ```
 
+改稿流程（先看再跑）：
+
+```
+/qp 帮我写份周报 --review     → 只返回草稿，不发送
+/qp revise 语气更正式一点      → 基于上一稿改写，仍不发送
+/qp apply --save=weekly       → 执行（并顺手存成 /qp-weekly）
+```
+
 变量规则：
 
-- `{{主题}}` 必填，缺了会拒绝发送并列出缺哪些；
+- `{{主题}}` 必填：缺了会**弹出问题卡片**一次问齐（多张模板变量会合成一张卡），答完自动执行；
+- 追问不可用（子代理、无界面、`--no-ask`、config `askMissing: false`）时，会退回“列出缺哪些变量”的报错；
 - `{{主题:默认值}}` 可省略；
 - `\{{` 是对的转义，表示字面量 `{{`；
 - 参数 `主题="Q4 复盘"` 带空格要加引号；也可以按模板里出现的顺序直接给值；
 - 模板没有变量时，多出来的参数会作为补充上下文追加到 Prompt 末尾。
 
-炼化结果会按会话暂存，「保存」时不需要再把 Prompt 复制回来。
+炼化结果会按会话暂存，「保存」时不需要再把 Prompt 复制回来；`--review` 与 `revise` 共用这份草稿。
 
 ## 配置
 
@@ -66,6 +82,7 @@ plugin_manager
     config:
       commandPrefix: qp          # 命令前缀（必须匹配 ^[a-z][a-z0-9_-]*$）
       autoRun: true              # /qp-<slug> 是否立即发送；false 时只回显文本
+      askMissing: true           # 缺必填变量时是否弹卡片追问；false = 直接报错
       maxPromptChars: 8000       # 单个 Prompt 上限
       maxPromptCommands: 50      # 最多生成多少条动态命令
       libraryPath: ''            # 留空 = %DSH_HOME%/quickprompt/prompts.json
