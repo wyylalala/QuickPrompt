@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" width="1000" height="560" role="img" aria-label="QuickPrompt 插件页「提示词库」面板线框示意">
+  <title>QuickPrompt 插件页「提示词库」标签页面板（界面示意 / mock layout）</title>
+  <desc>线框示意：左侧是已保存的提示词列表，右侧是标题、变量 chips、正文编辑器与新建/删除/保存按钮。不是最终像素。</desc>
+  <defs>
+    <linearGradient id="qp-panel-brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2b6de5"/>
+      <stop offset="1" stop-color="#6b4ce6"/>
+    </linearGradient>
+    <linearGradient id="qp-panel-head" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbfcff"/>
+      <stop offset="1" stop-color="#eef3fd"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1000" height="560" rx="22" fill="#eef2fa"/>
+  <rect x="24" y="28" width="960" height="520" rx="16" fill="#c9d6ee" opacity="0.45"/>
+  <rect x="20" y="20" width="960" height="520" rx="16" fill="#ffffff" stroke="#d8e1f2"/>
+
+  <!-- Window title bar -->
+  <path d="M20 36a16 16 0 0 1 16-16h928a16 16 0 0 1 16 16v38H20z" fill="url(#qp-panel-head)"/>
+  <line x1="20" y1="74" x2="980" y2="74" stroke="#dde6f5"/>
+  <circle cx="52" cy="47" r="6" fill="#ff6b6b" opacity="0.85"/>
+  <circle cx="76" cy="47" r="6" fill="#ffc93c" opacity="0.85"/>
+  <circle cx="100" cy="47" r="6" fill="#3ecf8e" opacity="0.85"/>
+  <text x="128" y="53" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="17" font-weight="600" fill="#1d2b4d">QuickPrompt · 提示词库</text>
+  <text x="956" y="53" text-anchor="end" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#7b8db3">界面示意 / mock layout</text>
+
+  <!-- Left pane -->
+  <text x="48" y="112" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600" letter-spacing="0.6" fill="#7b8db3">已保存 · 12</text>
+  <rect x="40" y="126" width="268" height="32" rx="9" fill="#f5f8ff" stroke="#e0e8f7"/>
+  <text x="156" y="147" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#a3b2cd">搜索提示词…</text>
+
+  <rect x="40" y="172" width="268" height="54" rx="12" fill="#eaf1ff" stroke="#bcd3ff"/>
+  <text x="56" y="196" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#16305c">weekly-report</text>
+  <text x="56" y="214" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12" fill="#6b7fa6">周报生成</text>
+
+  <text x="56" y="256" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#26364f">prd-review</text>
+  <text x="56" y="274" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12" fill="#7b8db3">PRD 评审</text>
+
+  <text x="56" y="316" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#26364f">bug-summary</text>
+  <text x="56" y="334" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12" fill="#7b8db3">缺陷汇总</text>
+
+  <text x="56" y="376" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#26364f">mail-reply</text>
+  <text x="56" y="394" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12" fill="#7b8db3">邮件回复</text>
+
+  <text x="56" y="436" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#26364f">translate</text>
+  <text x="56" y="454" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12" fill="#7b8db3">中英互译</text>
+
+  <line x1="324" y1="94" x2="324" y2="516" stroke="#e6ecf7"/>
+
+  <!-- Right pane header -->
+  <text x="352" y="134" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="26" font-weight="700" fill="#12295a">周报生成</text>
+  <rect x="776" y="108" width="176" height="32" rx="9" fill="#eef4ff" stroke="#cfe0ff"/>
+  <text x="864" y="129" text-anchor="middle" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13" fill="#2b6de5">/qp-weekly-report</text>
+  <text x="352" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13.5" fill="#6b7fa6">每周五生成结构化周报草稿，发给团队。</text>
+
+  <!-- Variable chips -->
+  <text x="352" y="198" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12" font-weight="600" letter-spacing="0.6" fill="#7b8db3">变量</text>
+  <rect x="352" y="208" width="64" height="28" rx="14" fill="#f2f6ff" stroke="#d5e2fa"/>
+  <text x="384" y="227" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12.5" fill="#3d5a8c">主题</text>
+  <rect x="424" y="208" width="64" height="28" rx="14" fill="#f2f6ff" stroke="#d5e2fa"/>
+  <text x="456" y="227" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12.5" fill="#3d5a8c">周期</text>
+  <rect x="496" y="208" width="140" height="28" rx="14" fill="#f2f6ff" stroke="#d5e2fa"/>
+  <text x="566" y="227" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12.5" fill="#3d5a8c">读者:团队负责人</text>
+
+  <!-- Editor -->
+  <rect x="352" y="252" width="600" height="168" rx="12" fill="#fbfcff" stroke="#dde6f5"/>
+  <text x="368" y="280" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#33456b">你是 <tspan fill="#7b3fe4">{{读者:团队负责人}}</tspan> 的助理，负责写周报。</text>
+  <text x="368" y="306" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#33456b">把本周的提交与问题整理成 <tspan fill="#7b3fe4">{{周期:本周}}</tspan> 的周报。</text>
+  <text x="368" y="332" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#33456b">结构：本周进展 / 风险与阻塞 / 下周计划。</text>
+  <text x="368" y="358" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#33456b">输出 Markdown，600 字以内，先结论后细节。</text>
+  <text x="368" y="384" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13.5" fill="#9fb0cc">（正文可直接编辑，变量用 {{名字}} 标记）</text>
+
+  <!-- Footer -->
+  <text x="352" y="462" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12.5" fill="#7b8db3">1,842 字 · 变量 3 · 本地 JSON 库</text>
+
+  <rect x="600" y="442" width="88" height="40" rx="10" fill="#f6f9ff" stroke="#dbe4f5"/>
+  <text x="644" y="467" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13.5" fill="#3d5a8c">新建</text>
+  <rect x="700" y="442" width="88" height="40" rx="10" fill="#f6f9ff" stroke="#dbe4f5"/>
+  <text x="744" y="467" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13.5" fill="#b04a4a">删除</text>
+  <rect x="800" y="442" width="152" height="40" rx="10" fill="url(#qp-panel-brand)"/>
+  <text x="876" y="467" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="14.5" font-weight="600" fill="#ffffff">保存</text>
+
+  <text x="352" y="512" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="12" fill="#8a9cbd">保存后 /qp-weekly-report 立即刷新，无需重启。</text>
+</svg>

@@ -15,7 +15,7 @@ import { join } from 'node:path'
 
 import { createFileStore } from './lib/store.js'
 import { DEFAULT_FORGE_SYSTEM_PROMPT, buildForgeMessages, collectForgeText } from './lib/forge.js'
-import { parseVariables, renderPrompt } from './lib/render.js'
+import { findIllegalSlots, parseVariables, renderPrompt } from './lib/render.js'
 
 /** Cordis plugin name. */
 export const name = 'quickprompt'
@@ -182,6 +182,27 @@ export function apply(ctx, config = {}) {
   }
 
   /**
+   * Explain every illegal `{{…}}` fragment a template carries.
+   * @param {string[]} illegal - fragments reported by `findIllegalSlots`.
+   * @returns {string} a message a person can act on.
+   */
+  function illegalMessage(illegal) {
+    const shown = illegal.slice(0, 3).join('、')
+    const more = illegal.length > 3 ? ` 等 ${illegal.length} 处` : ''
+    return `模板里有非法的占位符：${shown}${more}。变量名只能含字母、数字、中文、_ . -，且不能是纯数字；其余信息请写成“（默认：…，可替换）”而不是 {{}}。`
+  }
+
+  /**
+   * Refuse a template whose `{{…}}` fragments cannot become variables.
+   * @param {string} body - template text about to be stored.
+   * @throws {Error} when the template carries illegal fragments.
+   */
+  function assertTemplate(body) {
+    const illegal = findIllegalSlots(body)
+    if (illegal.length > 0) throw new Error(illegalMessage(illegal))
+  }
+
+  /**
    * Ask the user once for every missing slot, through the Host question card.
    * @param {object} invocation - command invocation.
    * @param {object} record - prompt record.
@@ -314,6 +335,7 @@ export function apply(ctx, config = {}) {
       return { kind: 'error', text: `slug 过长或含非法字符。` }
     }
     try {
+      assertTemplate(last.text)
       store.save({
         name: normalized,
         title: meta.title || last.rough.slice(0, 24),
@@ -429,6 +451,7 @@ export function apply(ctx, config = {}) {
       if (flags.dry !== undefined) {
         return { kind: 'success', text: `--dry 未写库，这是改后的版本：\n\n${text}` }
       }
+      assertTemplate(text)
       store.save({ name: record.name, title: record.title, description: record.description, body: text })
       refreshDynamicCommands()
       return { kind: 'success', text: `已更新 /${prefix}-${record.name}（${text.length} 字）：\n\n${text}` }
@@ -623,6 +646,141 @@ export function apply(ctx, config = {}) {
     }
   }, 'quickprompt dynamic commands')
 
+  /** Write one JSON response for the panel API. */
+  function sendJson(res, status, payload) {
+    res.statusCode = status
+    res.setHeader('content-type', 'application/json; charset=utf-8')
+    res.setHeader('cache-control', 'no-store')
+    res.end(JSON.stringify(payload))
+  }
+
+  /** Read and parse a small JSON request body. */
+  async function readJson(req) {
+    const chunks = []
+    let size = 0
+    for await (const chunk of req) {
+      size += chunk.length
+      if (size > 65536) {
+        const error = new Error('请求体过大')
+        error.status = 413
+        throw error
+      }
+      chunks.push(chunk)
+    }
+    if (size === 0) return {}
+    try {
+      return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    } catch {
+      const error = new Error('请求体不是合法 JSON')
+      error.status = 400
+      throw error
+    }
+  }
+
+  /** Only same-origin pages may read or write the library. */
+  function sameOrigin(req) {
+    const origin = req.headers?.origin
+    if (!origin) return true
+    try {
+      return new URL(origin).host === req.headers?.host
+    } catch {
+      return false
+    }
+  }
+
+  /** What the panel needs to render one library snapshot. */
+  function panelState() {
+    return {
+      prefix,
+      autoRun,
+      askMissing,
+      prompts: store.list().map((record) => ({
+        name: record.name,
+        title: record.title,
+        description: record.description,
+        body: record.body,
+        vars: parseVariables(record.body).map((slot) => slot.name),
+        usageCount: record.usageCount ?? 0,
+        updatedAt: record.updatedAt ?? 0,
+      })),
+    }
+  }
+
+  async function handlePanelState(req, res) {
+    if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: '仅允许同源页面访问' })
+    if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: '只支持 GET' })
+    return sendJson(res, 200, { ok: true, ...panelState() })
+  }
+
+  async function handlePanelSave(req, res) {
+    if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: '仅允许同源页面访问' })
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: '只支持 POST' })
+    let payload
+    try {
+      payload = await readJson(req)
+    } catch (error) {
+      return sendJson(res, error?.status ?? 400, { ok: false, error: error?.message ?? String(error) })
+    }
+    const name = String(payload?.name ?? '').trim().toLowerCase()
+    const body = String(payload?.body ?? '')
+    const title = String(payload?.title ?? '').trim() || name
+    const description = String(payload?.description ?? '').trim()
+    if (!COMMAND_NAME.test(name)) {
+      return sendJson(res, 400, { ok: false, error: 'slug 必须以小写字母开头，只含 a-z 0-9 - _。' })
+    }
+    if (!COMMAND_NAME.test(`${prefix}-${name}`)) {
+      return sendJson(res, 400, { ok: false, error: 'slug 过长或含非法字符。' })
+    }
+    if (!body.trim()) return sendJson(res, 400, { ok: false, error: '正文不能为空。' })
+    if (body.length > 40000) return sendJson(res, 400, { ok: false, error: '正文超过 40000 字符。' })
+    const illegal = findIllegalSlots(body)
+    if (illegal.length > 0) return sendJson(res, 400, { ok: false, error: illegalMessage(illegal) })
+    try {
+      store.save({ name, title, description: description || '由提示词库面板保存', body })
+    } catch (error) {
+      return sendJson(res, 500, { ok: false, error: `写入失败：${error?.message ?? error}` })
+    }
+    refreshDynamicCommands()
+    return sendJson(res, 200, { ok: true, ...panelState() })
+  }
+
+  async function handlePanelDelete(req, res) {
+    if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: '仅允许同源页面访问' })
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: '只支持 POST' })
+    let payload
+    try {
+      payload = await readJson(req)
+    } catch (error) {
+      return sendJson(res, error?.status ?? 400, { ok: false, error: error?.message ?? String(error) })
+    }
+    const name = String(payload?.name ?? '').trim()
+    if (!store.get(name)) return sendJson(res, 404, { ok: false, error: `没有名为 ${name} 的提示词。` })
+    store.remove(name)
+    refreshDynamicCommands()
+    return sendJson(res, 200, { ok: true, ...panelState() })
+  }
+
+  // The panel's data plane: three same-origin JSON endpoints on the Host webserver.
+  ctx.inject(['webServer'], (hostCtx) => {
+    hostCtx.effect(() => {
+      const web = hostCtx.webServer
+      const routes = [
+        web.register({ kind: 'exact', path: '/quickprompt/api/state', handler: handlePanelState }),
+        web.register({ kind: 'exact', path: '/quickprompt/api/save', handler: handlePanelSave }),
+        web.register({ kind: 'exact', path: '/quickprompt/api/delete', handler: handlePanelDelete }),
+      ]
+      return () => {
+        for (const dispose of routes) {
+          try {
+            dispose()
+          } catch {
+            /* already gone with the server */
+          }
+        }
+      }
+    }, 'quickprompt panel api')
+  })
+
   // Model-facing access to the same library.
   ctx.effect(() => ctx.tools.register({
     name: 'quick_prompt',
@@ -686,6 +844,11 @@ export function apply(ctx, config = {}) {
           const slug = String(args?.name ?? '').trim().toLowerCase()
           if (!COMMAND_NAME.test(slug)) return { text: 'slug 必须以小写字母开头，只含 a-z 0-9 - _。' }
           if (typeof args?.body !== 'string' || !args.body.trim()) return { text: 'body 不能为空。' }
+          try {
+            assertTemplate(args.body)
+          } catch (error) {
+            return { text: `模板校验未通过：${error?.message ?? error}` }
+          }
           store.save({
             name: slug,
             title: args?.title || slug,

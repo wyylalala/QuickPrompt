@@ -6,6 +6,7 @@ import test from 'node:test'
 
 import {
   bindArguments,
+  findIllegalSlots,
   parseArgs,
   parseVariables,
   renderPrompt,
@@ -96,4 +97,14 @@ test('file store persists, updates, and removes records', () => {
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+})
+
+test('illegal slot fragments are reported before a save', () => {
+  assert.deepEqual(findIllegalSlots('字数：{{500}} 左右'), ['{{500}}'])
+  assert.deepEqual(findIllegalSlots('日期：{{日期，如 2025-01-01}}'), ['{{日期，如 2025-01-01}}'])
+  assert.deepEqual(findIllegalSlots('空槽：{{}}'), ['{{}}'])
+  assert.deepEqual(findIllegalSlots('嵌套：{{a{b}}'), ['{{a{b}}'])
+  assert.deepEqual(findIllegalSlots('合法：{{主题}} 与 {{字数:500}} 与 {{a.b-c}}'), [])
+  assert.deepEqual(findIllegalSlots('转义：\\{{字面量}}'), [])
+  assert.deepEqual(findIllegalSlots('无槽位'), [])
 })

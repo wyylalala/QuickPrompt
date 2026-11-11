@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="QuickPrompt 链路示意：一句需求、炼化、追问改稿、保存为快捷命令、一键执行">
+  <title>QuickPrompt 链路（示意）</title>
+  <desc>五步横向流程：一句需求 → 炼化 → 缺参追问/改稿 → 保存为 /qp-slug → 一键执行。</desc>
+  <defs>
+    <linearGradient id="qp-flow-brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2b6de5"/>
+      <stop offset="1" stop-color="#7b3fe4"/>
+    </linearGradient>
+    <marker id="qp-flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#2b6de5"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="300" rx="24" fill="#f6f9ff" stroke="#dbe4f5"/>
+  <text x="36" y="52" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="17" font-weight="600" fill="#41598f">QuickPrompt 链路（示意）</text>
+  <text x="1164" y="52" text-anchor="end" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#8a9cbd">箭头 = 数据流向</text>
+
+  <!-- Step 1 -->
+  <rect x="30" y="88" width="196" height="136" rx="18" fill="#ffffff" stroke="#ccd9ef"/>
+  <circle cx="56" cy="118" r="14" fill="url(#qp-flow-brand)"/>
+  <text x="56" y="123" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff">1</text>
+  <text x="54" y="168" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="19" font-weight="700" fill="#16305c">一句需求</text>
+  <text x="54" y="196" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#6b7fa6">帮我写份周报</text>
+
+  <!-- Step 2 -->
+  <rect x="266" y="88" width="196" height="136" rx="18" fill="#ffffff" stroke="#ccd9ef"/>
+  <circle cx="292" cy="118" r="14" fill="url(#qp-flow-brand)"/>
+  <text x="292" y="123" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff">2</text>
+  <text x="290" y="168" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="19" font-weight="700" fill="#16305c">炼化</text>
+  <text x="290" y="196" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#6b7fa6">结构化 · 可复用</text>
+
+  <!-- Step 3 -->
+  <rect x="502" y="88" width="196" height="136" rx="18" fill="#ffffff" stroke="#ccd9ef"/>
+  <circle cx="528" cy="118" r="14" fill="url(#qp-flow-brand)"/>
+  <text x="528" y="123" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff">3</text>
+  <text x="526" y="168" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="19" font-weight="700" fill="#16305c">缺参追问 / 改稿</text>
+  <text x="526" y="196" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#6b7fa6">缺了就弹卡片问齐</text>
+
+  <!-- Step 4 -->
+  <rect x="738" y="88" width="196" height="136" rx="18" fill="#ffffff" stroke="#ccd9ef"/>
+  <circle cx="764" cy="118" r="14" fill="url(#qp-flow-brand)"/>
+  <text x="764" y="123" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff">4</text>
+  <text x="762" y="168" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="19" font-weight="700" fill="#16305c">保存为快捷命令</text>
+  <text x="762" y="196" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="13" fill="#2b6de5">/qp-&lt;slug&gt;</text>
+
+  <!-- Step 5 -->
+  <rect x="974" y="88" width="196" height="136" rx="18" fill="#ffffff" stroke="#ccd9ef"/>
+  <circle cx="1000" cy="118" r="14" fill="url(#qp-flow-brand)"/>
+  <text x="1000" y="123" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff">5</text>
+  <text x="998" y="168" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="19" font-weight="700" fill="#16305c">一键执行</text>
+  <text x="998" y="196" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#6b7fa6">复跑 · 迭代 · 分享</text>
+
+  <!-- Arrows -->
+  <line x1="232" y1="156" x2="258" y2="156" stroke="#2b6de5" stroke-width="2.5" marker-end="url(#qp-flow-arrow)"/>
+  <line x1="468" y1="156" x2="494" y2="156" stroke="#2b6de5" stroke-width="2.5" marker-end="url(#qp-flow-arrow)"/>
+  <line x1="704" y1="156" x2="730" y2="156" stroke="#2b6de5" stroke-width="2.5" marker-end="url(#qp-flow-arrow)"/>
+  <line x1="940" y1="156" x2="966" y2="156" stroke="#2b6de5" stroke-width="2.5" marker-end="url(#qp-flow-arrow)"/>
+
+  <text x="600" y="268" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="13" fill="#6b7fa6">炼化结果先成为草稿：可 review / revise / apply，再决定是否入库与执行。</text>
+</svg>

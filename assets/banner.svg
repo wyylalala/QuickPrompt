@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" role="img" aria-label="QuickPrompt：把一句口语需求炼化成可复跑的 Prompt">
+  <title>QuickPrompt — 把一句口语需求炼化成结构化 Prompt，保存为快捷命令，一键复跑</title>
+  <desc>深色横幅：左侧是 QuickPrompt 图标，右侧是名称、中文定位语，以及 /qp-slug 命令示例。</desc>
+  <defs>
+    <linearGradient id="qp-banner-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#151b36"/>
+    </linearGradient>
+    <linearGradient id="qp-banner-brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b6de5"/>
+      <stop offset="1" stop-color="#7b3fe4"/>
+    </linearGradient>
+    <linearGradient id="qp-banner-bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe066"/>
+      <stop offset="1" stop-color="#ffb020"/>
+    </linearGradient>
+    <radialGradient id="qp-banner-glow" cx="0.18" cy="0.16" r="0.9">
+      <stop offset="0" stop-color="#2b6de5" stop-opacity="0.45"/>
+      <stop offset="0.6" stop-color="#2b6de5" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#2b6de5" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="qp-banner-glow2" cx="0.94" cy="0.88" r="0.62">
+      <stop offset="0" stop-color="#7b3fe4" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#7b3fe4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="320" rx="28" fill="url(#qp-banner-bg)"/>
+  <rect width="1200" height="320" rx="28" fill="url(#qp-banner-glow)"/>
+  <rect width="1200" height="320" rx="28" fill="url(#qp-banner-glow2)"/>
+
+  <!-- Icon: same shapes as icon.svg, drawn at 2x. -->
+  <g transform="translate(64 96)">
+    <rect width="128" height="128" rx="32" fill="url(#qp-banner-brand)"/>
+    <path d="M28 54l20-14v12l-10 8 10 8v12l-20-14z" fill="#ffffff" opacity="0.92"/>
+    <path d="M56 82h20" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.92"/>
+    <path d="M80 28l-18 34h14l-6 30 20-36h-14l6-28z" fill="url(#qp-banner-bolt)"/>
+  </g>
+
+  <text x="232" y="152" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="64" font-weight="700" fill="#f2f6ff">QuickPrompt</text>
+  <text x="234" y="204" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="29" fill="#a9bbdd">把一句口语需求，炼化成可复跑的 Prompt。</text>
+  <text x="234" y="246" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="19" fill="#7286ad">DeepSeek Harness plugin · 炼化 → 入库 → 一键执行</text>
+
+  <rect x="888" y="118" width="248" height="56" rx="28" fill="#16203c" stroke="#2b6de5" stroke-opacity="0.55"/>
+  <text x="1012" y="153" text-anchor="middle" font-family="'Cascadia Code', 'JetBrains Mono', Consolas, monospace" font-size="18" fill="#9ec1ff">/qp-&lt;slug&gt;</text>
+  <text x="1012" y="214" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif" font-size="14" fill="#7286ad">随时复跑 · 缺参追问</text>
+</svg>

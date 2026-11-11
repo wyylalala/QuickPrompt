@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -12,7 +12,17 @@ function createHarness({ file, forged = '角色：周报助手\n主题：{{主�
   const tools = new Map()
   const sent = []
   const requests = []
+  const routes = []
   const state = { forged }
+  const webServer = {
+    register(route) {
+      routes.push(route)
+      return () => {
+        const at = routes.indexOf(route)
+        if (at >= 0) routes.splice(at, 1)
+      }
+    },
+  }
   const ctx = {
     logger: { warn() {} },
     effect(callback) {
@@ -24,7 +34,14 @@ function createHarness({ file, forged = '角色：周报助手\n主题：{{主�
         return { currentSelection: () => ({ provider: 'test-provider', model: 'test-model' }) }
       }
       if (name === 'userQuestions') return userQuestions
+      if (name === 'webServer') return webServer
       return undefined
+    },
+    inject(names, callback) {
+      if (Array.isArray(names) && names.includes('webServer')) {
+        callback({ webServer, effect: (fn) => ctx.effect(fn) })
+      }
+      return () => {}
     },
     commands: {
       register(definition) {
@@ -54,7 +71,46 @@ function createHarness({ file, forged = '角色：周报助手\n主题：{{主�
     },
   }
   const signal = new AbortController().signal
-  return { ctx, commands, tools, agent, sent, requests, state, signal, file }
+  return { ctx, commands, tools, agent, sent, requests, routes, state, signal, file }
+}
+
+/** One fake panel request whose body streams as JSON. */
+function createRequest({ method = 'GET', body, headers = {} } = {}) {
+  const chunks = body === undefined ? [] : [Buffer.from(JSON.stringify(body))]
+  return {
+    method,
+    headers: { host: 'quickprompt.test', ...headers },
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) yield chunk
+    },
+  }
+}
+
+/** One fake panel response capturing what the handler wrote. */
+function createResponse() {
+  const chunks = []
+  return {
+    statusCode: 200,
+    headers: {},
+    setHeader(name, value) {
+      this.headers[name] = value
+    },
+    end(value) {
+      if (value !== undefined) chunks.push(String(value))
+    },
+    get body() {
+      return JSON.parse(chunks.join('') || '{}')
+    },
+  }
+}
+
+/** Call one panel route by path. */
+async function callRoute(harness, path, options) {
+  const route = harness.routes.find((entry) => entry.path === path)
+  assert.ok(route, `route ${path} must be registered`)
+  const response = createResponse()
+  await route.handler(createRequest(options), response)
+  return response
 }
 
 test('a plain request after /qp forges and runs it, --dry only forges', async () => {
@@ -332,6 +388,147 @@ test('/qp edit rewrites a saved prompt, --dry leaves it alone', async () => {
     const edited = await manager.handler({ agent: harness.agent, rawInput: 'edit weekly 换个语气', signal: harness.signal })
     assert.match(edited.text, /已更新 \/qp-weekly/)
     assert.match(JSON.parse(readFileSync(file, 'utf8')).prompts.weekly.body, /新周报助手/)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the panel API lists the library with slots and prefix', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
+  const file = join(directory, 'prompts.json')
+  try {
+    const harness = createHarness({ file })
+    apply(harness.ctx, { libraryPath: file })
+    const manager = harness.commands.get('qp')
+    await manager.handler({ agent: harness.agent, rawInput: 'forge 帮我写周报', signal: harness.signal })
+    await manager.handler({ agent: harness.agent, rawInput: 'save weekly', signal: harness.signal })
+
+    const response = await callRoute(harness, '/quickprompt/api/state')
+    assert.equal(response.statusCode, 200)
+    assert.equal(response.body.ok, true)
+    assert.equal(response.body.prefix, 'qp')
+    assert.equal(response.body.prompts.length, 1)
+    assert.equal(response.body.prompts[0].name, 'weekly')
+    assert.deepEqual(response.body.prompts[0].vars, ['主题'])
+    assert.match(response.body.prompts[0].body, /角色：周报助手/)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the panel API saves a prompt and registers its command', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
+  const file = join(directory, 'prompts.json')
+  try {
+    const harness = createHarness({ file })
+    apply(harness.ctx, { libraryPath: file })
+
+    const saved = await callRoute(harness, '/quickprompt/api/save', {
+      method: 'POST',
+      body: { name: 'demo', title: '演示', description: '面板写入', body: '角色：助手\n主题：{{主题}}' },
+    })
+    assert.equal(saved.statusCode, 200)
+    assert.equal(saved.body.ok, true)
+    assert.ok(harness.commands.has('qp-demo'), 'saving must register /qp-demo')
+    assert.match(readFileSync(file, 'utf8'), /演示/)
+
+    const rendered = await harness.commands.get('qp-demo').handler({
+      agent: harness.agent,
+      rawInput: '主题=周会',
+      signal: harness.signal,
+    })
+    assert.equal(rendered.kind, 'success')
+    assert.match(harness.sent[0].content[0].text, /主题：周会/)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the panel API refuses illegal placeholders and leaves the library alone', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
+  const file = join(directory, 'prompts.json')
+  try {
+    const harness = createHarness({ file })
+    apply(harness.ctx, { libraryPath: file })
+
+    const refused = await callRoute(harness, '/quickprompt/api/save', {
+      method: 'POST',
+      body: { name: 'bad', title: '坏模板', body: '字数：{{500}} 左右' },
+    })
+    assert.equal(refused.statusCode, 400)
+    assert.equal(refused.body.ok, false)
+    assert.match(refused.body.error, /非法的占位符/)
+    assert.equal(harness.commands.has('qp-bad'), false)
+    assert.equal(existsSync(file), false, 'a refused save must not create the library')
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the panel API deletes a prompt and its command', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
+  const file = join(directory, 'prompts.json')
+  try {
+    const harness = createHarness({ file })
+    apply(harness.ctx, { libraryPath: file })
+    await callRoute(harness, '/quickprompt/api/save', {
+      method: 'POST',
+      body: { name: 'demo', title: '演示', body: '主题：{{主题}}' },
+    })
+    assert.ok(harness.commands.has('qp-demo'))
+
+    const removed = await callRoute(harness, '/quickprompt/api/delete', { method: 'POST', body: { name: 'demo' } })
+    assert.equal(removed.statusCode, 200)
+    assert.equal(removed.body.prompts.length, 0)
+    assert.equal(harness.commands.has('qp-demo'), false)
+
+    const again = await callRoute(harness, '/quickprompt/api/delete', { method: 'POST', body: { name: 'demo' } })
+    assert.equal(again.statusCode, 404)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the panel API refuses a cross-origin caller', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
+  const file = join(directory, 'prompts.json')
+  try {
+    const harness = createHarness({ file })
+    apply(harness.ctx, { libraryPath: file })
+
+    const state = await callRoute(harness, '/quickprompt/api/state', { headers: { origin: 'https://evil.example' } })
+    assert.equal(state.statusCode, 403)
+
+    const save = await callRoute(harness, '/quickprompt/api/save', {
+      method: 'POST',
+      headers: { origin: 'https://evil.example' },
+      body: { name: 'demo', body: '主题：{{主题}}' },
+    })
+    assert.equal(save.statusCode, 403)
+    assert.equal(harness.commands.has('qp-demo'), false)
+
+    const sameOrigin = await callRoute(harness, '/quickprompt/api/state', {
+      headers: { origin: 'http://quickprompt.test' },
+    })
+    assert.equal(sameOrigin.statusCode, 200)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('saving an illegal forged template is refused', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
+  const file = join(directory, 'prompts.json')
+  try {
+    const harness = createHarness({ file, forged: '字数：{{500}} 左右\n主题：{{主题}}' })
+    apply(harness.ctx, { libraryPath: file })
+    const manager = harness.commands.get('qp')
+    await manager.handler({ agent: harness.agent, rawInput: 'forge 帮我写周报', signal: harness.signal })
+
+    const saved = await manager.handler({ agent: harness.agent, rawInput: 'save weekly', signal: harness.signal })
+    assert.equal(saved.kind, 'error')
+    assert.match(saved.text, /非法的占位符/)
+    assert.equal(harness.commands.has('qp-weekly'), false)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
