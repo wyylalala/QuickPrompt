@@ -81,6 +81,7 @@ function formatHelp(prefix) {
     `/${prefix} rm <slug> --yes      删除`,
     `/${prefix} path                 显示库文件位置`,
     '',
+    `也可以直接把需求写在命令后面：/${prefix} 帮我写一份周报（等价于 /${prefix} forge 帮我写一份周报）。`,
     `保存后会自动生成 /${prefix}-<slug>，例如 /${prefix}-weekly，直接执行即可。`,
     '模板支持 {{变量}} 与 {{变量:默认值}}；参数既可写 主题=Q4 也可按顺序给。',
   ].join('\n')
@@ -293,16 +294,47 @@ export function apply(ctx, config = {}) {
     return { flags, rest: rest.join(' ') }
   }
 
+  /**
+   * Forge one request and report it, saving immediately when `--save` was given.
+   * @param {object} invocation - command invocation.
+   * @param {string} argument - the raw request text.
+   * @param {Record<string, string>} [flags] - parsed `--key=value` flags.
+   * @returns {Promise<{kind: string, text: string}>} command result.
+   */
+  async function forgeAndReport(invocation, argument, flags = {}) {
+    try {
+      const text = await forge(argument, invocation.signal)
+      lastForged.set(invocation.agent?.id ?? 'default', { text, rough: argument, at: Date.now() })
+      const saveAs = typeof flags.save === 'string' ? flags.save : ''
+      if (saveAs) {
+        return saveLastForged(invocation, saveAs, { title: typeof flags.title === 'string' ? flags.title : undefined })
+      }
+      return {
+        kind: 'success',
+        text: `炼化完成：\n\n${text}\n\n下一步：/${prefix} save <slug> 保存为快捷命令，或 /${prefix} run <slug> 使用已保存的条目。`,
+      }
+    } catch (error) {
+      return { kind: 'error', text: `炼化失败：${error?.message ?? error}` }
+    }
+  }
+
   // The manager command.
   ctx.effect(() => ctx.commands.register({
     name: prefix,
     description: '炼化 Prompt 并一键执行：保存常用提示词为快捷命令',
-    input: { hint: 'list | show <slug> | forge <需求> | save <slug> | run <slug> | rm <slug> | path' },
+    input: { hint: '<一句需求> | list | show <slug> | forge <需求> | save <slug> | run <slug> | rm <slug> | path' },
     handler: async (invocation) => {
       const { flags, rest } = readFlags(invocation.rawInput)
-      const [subcommand, ...tail] = rest.trim().split(/\s+/u)
+      const trimmed = rest.trim()
+      const [subcommand, ...tail] = trimmed.split(/\s+/u)
       const argument = tail.join(' ')
-      switch ((subcommand ?? 'help').toLowerCase()) {
+      const known = ['help', 'list', 'show', 'forge', 'save', 'run', 'rm', 'remove', 'path']
+      const key = (subcommand ?? '').toLowerCase()
+      // 直接把一句需求写在 /qp 后面时，等价于 /qp forge <需求>。
+      if (trimmed.length > 0 && !known.includes(key)) {
+        return forgeAndReport(invocation, trimmed, flags)
+      }
+      switch (key || 'help') {
         case 'help':
           return { kind: 'success', text: formatHelp(prefix) }
         case 'list':
@@ -322,22 +354,9 @@ export function apply(ctx, config = {}) {
             ].filter((line) => line !== '').join('\n'),
           }
         }
-        case 'forge': {
-          try {
-            const text = await forge(argument, invocation.signal)
-            lastForged.set(invocation.agent?.id ?? 'default', { text, rough: argument, at: Date.now() })
-            const saveAs = typeof flags.save === 'string' ? flags.save : ''
-            if (saveAs) {
-              return saveLastForged(invocation, saveAs, { title: typeof flags.title === 'string' ? flags.title : undefined })
-            }
-            return {
-              kind: 'success',
-              text: `炼化完成：\n\n${text}\n\n下一步：/${prefix} save <slug> 保存为快捷命令，或 /${prefix} run <slug> 使用已保存的条目。`,
-            }
-          } catch (error) {
-            return { kind: 'error', text: `炼化失败：${error?.message ?? error}` }
-          }
-        }
+        case 'forge':
+          return forgeAndReport(invocation, argument, flags)
+
         case 'save': {
           const slug = (tail[0] ?? '').trim()
           if (!slug) return { kind: 'error', text: `用法：/${prefix} save <slug> [--title=标题] [--desc=描述]` }

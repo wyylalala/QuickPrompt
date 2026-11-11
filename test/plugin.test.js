@@ -53,6 +53,26 @@ function createHarness({ file, forged = '角色：周报助手\n主题：{{主�
   return { ctx, commands, tools, agent, sent, signal, file }
 }
 
+test('writing a plain request after /qp forges it directly', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
+  const file = join(directory, 'prompts.json')
+  try {
+    const harness = createHarness({ file })
+    apply(harness.ctx, { libraryPath: file })
+    const manager = harness.commands.get('qp')
+
+    const forged = await manager.handler({ agent: harness.agent, rawInput: '帮我写份周报', signal: harness.signal })
+    assert.equal(forged.kind, 'success')
+    assert.match(forged.text, /角色：周报助手/)
+
+    const saved = await manager.handler({ agent: harness.agent, rawInput: 'save weekly', signal: harness.signal })
+    assert.equal(saved.kind, 'success')
+    assert.ok(harness.commands.has('qp-weekly'))
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('forge → save → dynamic command → run delivers one user message', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
   const file = join(directory, 'prompts.json')
