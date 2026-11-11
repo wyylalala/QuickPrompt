@@ -53,7 +53,7 @@ function createHarness({ file, forged = '角色：周报助手\n主题：{{主�
   return { ctx, commands, tools, agent, sent, signal, file }
 }
 
-test('writing a plain request after /qp forges it directly', async () => {
+test('a plain request after /qp forges and runs it, --dry only forges', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'quickprompt-plugin-'))
   const file = join(directory, 'prompts.json')
   try {
@@ -61,13 +61,23 @@ test('writing a plain request after /qp forges it directly', async () => {
     apply(harness.ctx, { libraryPath: file })
     const manager = harness.commands.get('qp')
 
-    const forged = await manager.handler({ agent: harness.agent, rawInput: '帮我写份周报', signal: harness.signal })
-    assert.equal(forged.kind, 'success')
-    assert.match(forged.text, /角色：周报助手/)
+    const ran = await manager.handler({ agent: harness.agent, rawInput: '帮我写份周报', signal: harness.signal })
+    assert.equal(ran.kind, 'success')
+    assert.match(ran.text, /已炼化并开始执行/)
+    assert.equal(harness.sent.length, 1)
+    assert.match(harness.sent[0].content[0].text, /角色：周报助手/)
 
     const saved = await manager.handler({ agent: harness.agent, rawInput: 'save weekly', signal: harness.signal })
     assert.equal(saved.kind, 'success')
     assert.ok(harness.commands.has('qp-weekly'))
+
+    const dry = await manager.handler({ agent: harness.agent, rawInput: '帮我写份周报 --dry', signal: harness.signal })
+    assert.match(dry.text, /角色：周报助手/)
+    assert.equal(harness.sent.length, 1, '--dry must not send')
+
+    const removed = await manager.handler({ agent: harness.agent, rawInput: 'rm weekly --yes', signal: harness.signal })
+    assert.equal(removed.kind, 'success')
+    assert.equal(harness.commands.has('qp-weekly'), false)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

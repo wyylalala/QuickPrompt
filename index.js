@@ -51,7 +51,7 @@ function formatList(records, prefix) {
   if (records.length === 0) {
     return [
       `库还是空的。`,
-      `用法：/${prefix} forge <一句粗糙需求> 炼化，然后 /${prefix} save <英文slug> 保存。`,
+      `用法：/${prefix} <一句需求> 炼化并执行，或 /${prefix} forge <一句需求> 只炼化。`,
       `保存后会得到一条专属命令，例如 /${prefix}-weekly。`,
     ].join('\n')
   }
@@ -73,15 +73,17 @@ function formatHelp(prefix) {
   return [
     'QuickPrompt — 炼化 Prompt 并一键执行',
     '',
+    `/${prefix} <一句需求>           炼化后立即执行（加 --dry 只看不跑）`,
     `/${prefix} list                 列出已保存的提示词`,
     `/${prefix} show <slug>          查看原文与变量`,
-    `/${prefix} forge <粗糙需求>     调用模型炼化成结构化 Prompt`,
+    `/${prefix} forge <粗糙需求>     只炼化并回显，不执行`,
     `/${prefix} save <slug> [--title=标题] [--desc=描述]   保存最近一次炼化`,
     `/${prefix} run <slug> [k=v ...] 渲染并立即执行`,
     `/${prefix} rm <slug> --yes      删除`,
     `/${prefix} path                 显示库文件位置`,
     '',
-    `也可以直接把需求写在命令后面：/${prefix} 帮我写一份周报（等价于 /${prefix} forge 帮我写一份周报）。`,
+    `也可以直接把需求写在命令后面：/${prefix} 帮我写一份周报，炼化完会直接开始执行。`,
+    `加 --save=<slug> 可顺手存成快捷命令：/${prefix} 帮我写周报 --save=weekly`,
     `保存后会自动生成 /${prefix}-<slug>，例如 /${prefix}-weekly，直接执行即可。`,
     '模板支持 {{变量}} 与 {{变量:默认值}}；参数既可写 主题=Q4 也可按顺序给。',
   ].join('\n')
@@ -278,15 +280,15 @@ export function apply(ctx, config = {}) {
     }
   }
 
-  /** Parse `--key=value` flags out of the argument text. */
+  /** Parse `--key=value` and bare `--flag` tokens out of the argument text. */
   function readFlags(rawInput) {
     const flags = {}
-    const tokens = String(rawInput ?? '').match(/--[a-z-]+=[^\s]*|"[^"]*"|'[^']*'|\S+/giu) ?? []
+    const tokens = String(rawInput ?? '').match(/--[a-z-]+(?:=[^\s]*)?|"[^"]*"|'[^']*'|\S+/giu) ?? []
     const rest = []
     for (const token of tokens) {
-      const match = /^--([a-z-]+)=([\s\S]*)$/iu.exec(token)
+      const match = /^--([a-z-]+)(?:=([\s\S]*))?$/iu.exec(token)
       if (match) {
-        flags[match[1]] = match[2].replace(/^["']|["']$/g, '')
+        flags[match[1]] = match[2] === undefined ? '' : match[2].replace(/^["']|["']$/g, '')
         continue
       }
       rest.push(token)
@@ -330,9 +332,33 @@ export function apply(ctx, config = {}) {
       const argument = tail.join(' ')
       const known = ['help', 'list', 'show', 'forge', 'save', 'run', 'rm', 'remove', 'path']
       const key = (subcommand ?? '').toLowerCase()
-      // 直接把一句需求写在 /qp 后面时，等价于 /qp forge <需求>。
+      // 直接把一句需求写在 /qp 后面：炼化后立即执行；加 --dry 只炼化不执行。
       if (trimmed.length > 0 && !known.includes(key)) {
-        return forgeAndReport(invocation, trimmed, flags)
+        if (flags.dry !== undefined || flags['no-run'] !== undefined) {
+          return forgeAndReport(invocation, trimmed, flags)
+        }
+        let text
+        try {
+          text = await forge(trimmed, invocation.signal)
+        } catch (error) {
+          return { kind: 'error', text: `炼化失败：${error?.message ?? error}` }
+        }
+        lastForged.set(invocation.agent?.id ?? 'default', { text, rough: trimmed, at: Date.now() })
+        if (typeof flags.save === 'string' && flags.save.length > 0) {
+          const saved = saveLastForged(invocation, flags.save, {
+            title: typeof flags.title === 'string' ? flags.title : undefined,
+          })
+          if (saved.kind !== 'success') return saved
+        }
+        if (!autoRun) {
+          return { kind: 'success', text: `autoRun 已关闭，下面是炼化结果：\n\n${text}` }
+        }
+        try {
+          deliver(invocation.agent, text)
+        } catch (error) {
+          return { kind: 'error', text: `炼化完成，但发送失败：${error?.message ?? error}\n\n${text}` }
+        }
+        return { kind: 'success', text: `已炼化并开始执行（${text.length} 字）。` }
       }
       switch (key || 'help') {
         case 'help':
